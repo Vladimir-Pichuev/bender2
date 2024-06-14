@@ -1,0 +1,9 @@
+Перебор файлов в папке и их последующее удаление
+import os
+ 
+dir_name = "D:\Начальные"
+test = os.listdir(dir_name)
+ 
+for item in test:
+    if item.endswith(".bin"):
+        os.remove(os.path.join(dir_name, item))
