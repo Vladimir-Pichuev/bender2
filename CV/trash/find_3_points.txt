@@ -1,0 +1,33 @@
+# Проверяем, нашли ли мы три зелёных круга
+if len(centroids) == 3:
+    # Определение исходных точек (x, y)
+    src_points = np.array(centroids, dtype=np.float32)
+
+    # Определение новых точек для выравнивания
+    dst_points = np.array(
+        [[0, image.shape[0]], [0, 0], [image.shape[1], 0]], dtype=np.float32
+    )
+
+    # Вычисление матрицы аффинного преобразования
+    matrix = cv2.getAffineTransform(src_points, dst_points)
+
+    # Применение аффинного преобразования
+    aligned_image = cv2.warpAffine(
+        image, matrix, (image.shape[1], image.shape[0])
+    )
+
+    # Сохранение выровненного изображения
+    cv2.imwrite('aligned_image.jpg', aligned_image)
+else:
+    print("Не удалось найти три зелёных круга для выравнивания.")
+
+if centroids:
+    for c in centroids:
+        cv2.circle(image, c, 5, (0, 0, 255), -1)
+
+    # Отображение изображения
+    cv2.imshow('Detected Green Circles', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+else:
+    print("Зеленые круги не найдены.")
