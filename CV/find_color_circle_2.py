@@ -2,10 +2,10 @@ import cv2
 import numpy as np
 
 def open_filename(resized_image):
-    # Конвертация изображения в HSV
+    # Преобразовать изображение в HSV
     hsv_image = cv2.cvtColor(resized_image, cv2.COLOR_BGR2HSV)
 
-    # Определяем некую область в левом нижнем углу
+    # Определить область интереса в левом нижнем углу
     roi_size = 50  # Размер ROI
     roi = resized_image[-roi_size:, :roi_size]
     roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
@@ -23,49 +23,52 @@ def open_filename(resized_image):
     mask2 = cv2.inRange(hsv_image, lower_red2, upper_red2)
     mask = cv2.bitwise_or(mask1, mask2)
 
-    # Применение маски к изображению
+    # Применить маску к изображению
     red_only = cv2.bitwise_and(resized_image, resized_image, mask=mask)
 
-    # Преобразование в оттенки серого для обнаружения кругов
+    # Преобразовать в оттенки серого для обнаружения кругов
     gray_image = cv2.cvtColor(red_only, cv2.COLOR_BGR2GRAY)
 
-    # Уменьшение шума перед обнаружением кругов
-    blurred_image = cv2.GaussianBlur(gray_image, (9, 9), 2)
+    # Обнаружение краев с помощью канни
+    edges = cv2.Canny(gray_image, 50, 150, apertureSize=3)
 
-    # Обнаружение кругов
-    circles = cv2.HoughCircles(blurred_image, cv2.HOUGH_GRADIENT,
-                               dp=1.2, minDist=50,
-                               param1=50, param2=30, minRadius=10, maxRadius=100)
+    # Найти контуры краев
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    if circles is not None:
-        circles = np.uint16(np.around(circles))
-    print(f"Обнаружено кругов: {circles.shape[1]}")
+    # Фильтровать контуры для поиска кругов
+    circles = []
+    for cnt in contours:
+        (x, y), radius = cv2.minEnclosingCircle(cnt)
+        center = (int(x), int(y))
+        radius = int(radius)
+        if radius > 0:  # Убедиться, что радиус положительный
+            circles.append((center, radius))
 
-    for i in circles[0, :]:
-        print(f"Круг: (x={i[0]}, y={i[1]}), радиус={i[2]}")
-        
-        # Определяем область 10x10 вокруг центра круга
-        x_start = max(0, i[0] - 5)
-        x_end = min(resized_image.shape[1], i[0] + 5)
-        y_start = max(0, i[1] - 5)
-        y_end = min(resized_image.shape[0], i[1] + 5)
-        
-        # Выбираем область 10x10
+    print(f"Найдено кругов: {len(circles)}")
+
+    for center, radius in circles:
+        print(f"Круг: (x={center[0]}, y={center[1]}), радиус={radius}")
+
+        # Определить область 10x10 вокруг центра круга
+        x_start = max(0, center[0] - 5)
+        x_end = min(resized_image.shape[1], center[0] + 5)
+        y_start = max(0, center[1] - 5)
+        y_end = min(resized_image.shape[0], center[1] + 5)
+
+        # Выбрать область 10x10
         roi = resized_image[y_start:y_end, x_start:x_end]
-        
-        # Посчитать среднюю яркость в этой области
+
+        # Вычислить среднюю яркость в этой области
         brightness = np.mean(roi)
-        # Считаем относительную яркость в этой области
+        # Вычислить относительную яркость в этой области
         relative_brightness = brightness / roi_brightness
         print(f"Яркость в области 10x10 вокруг центра круга: {brightness}, Относительная яркость: {relative_brightness}")
-        
+
         # Нарисовать круги на изображении
-        cv2.circle(resized_image, (i[0], i[1]), i[2], (0, 255, 0), 2)
-    else:
-        print("Круги не обнаружены. в функции find_color_circle_2")
+        cv2.circle(resized_image, center, radius, (0, 255, 0), 2)
 
     # Показать изображение с обнаруженными кругами
-    cv2.imshow("Detected Circles", resized_image)
+    cv2.imshow("Обнаруженные круги", resized_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

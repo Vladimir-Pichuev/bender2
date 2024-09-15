@@ -1,12 +1,15 @@
 import cv2
 import numpy as np
+import os
 
 from screen_info import get_screen_resolution
 from find_color_circle_2 import open_filename
 from find_direction import find_green_circles_centroids
 
 # Загрузка изображения
-image = cv2.imread('CV/qr_circle_rotate.png')
+file_path = os.path.join('CV', 'qr_circle_rotate.png')
+# os.chdir(file_path)
+image = cv2.imread(file_path)
 
 if image is None:
     print("Не удалось загрузить изображение.")
@@ -26,8 +29,8 @@ else:
         # Определяем новые точки для горизонтального выравнивания
         dst_points = np.array([
             [0, 0],
-            [width - 1, 0],
-            [width - 1, height - 1]
+            [width - 1, height - 1],
+            [width - 1, 0]
         ], dtype=np.float32)
 
         # Вычисляем матрицу аффинного преобразования
