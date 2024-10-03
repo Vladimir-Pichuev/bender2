@@ -72,9 +72,11 @@ def open_filename(resized_image):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+"""
 # Пример использования функции
 resized_image = cv2.imread('CV/new_files/qr_circle_rotate_cut.png')
 if resized_image is not None:
     open_filename(resized_image)
 else:
     print("Не удалось загрузить изображение.")
+"""

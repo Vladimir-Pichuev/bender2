@@ -1,49 +1,64 @@
 import cv2
 import numpy as np
-import traceback
 
+def find_green_circles_centroids(image_path):
+    # Считываем изображение
+    image = cv2.imread(image_path)
 
-# Функция для поиска кругов с зеленым цветом
-# и определения границы изображения
-def find_green_circles_centroids(image):
-    if image is None or image.size == 0:
-        raise ValueError('Image cannot be empty.')
-
-    # Конвертация изображения в HSV
+    # Конвертируем изображение в цветовое пространство HSV
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-    # Определение диапазона зеленого цвета в HSV
+    # Определяем диапазон зеленого цвета в HSV
     lower_green = np.array([40, 40, 40])
-    upper_green = np.array([70, 255, 255])
+    upper_green = np.array([80, 255, 255])
 
-    # Применение порога к HSV изображению, чтобы получить только зеленые цвета
+    # Пороговая обработка изображения для выделения только зеленых пикселей
     mask = cv2.inRange(hsv, lower_green, upper_green)
 
-    try:
-        # Поиск контуров
-        contours, _ = cv2.findContours(
-            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+    # Применяем морфологические операции для удаления шума и заполнения отверстий
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.erode(mask, kernel, iterations=2)
+    mask = cv2.dilate(mask, kernel, iterations=2)
 
-        # Фильтрация контуров, чтобы оставить только приблизительно круглые
-        circles = [
-            cnt for cnt in contours if cv2.contourArea(cnt) > 100 and
-            4 * np.pi * (cv2.contourArea(cnt) / cv2.arcLength(cnt, True)**2)
-            > 0.2
-        ]
+    # Ищем контуры зеленых фигур
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Расчет центроидов окружностей
-        centroids = []
-        for circ in circles:
-            M = cv2.moments(circ)
-            if M['m00'] != 0:
-                cx = int(M['m10'] / M['m00'])
-                cy = int(M['m01'] / M['m00'])
-                centroids.append((cx, cy))
+    # Создаем список для хранения центров эллипсов
+    centroids = []
 
-        # print(centroids)
-        return centroids
-    except Exception as e:
-        print(f"An error occurred while processing image: {image} {e}")
-        traceback.print_exc()
-        return []
+    # Перебираем контуры и находим центры эллипсов
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        x, y, w, h = cv2.boundingRect(contour)
+        aspect_ratio = float(w)/h
+        if area > 100 and aspect_ratio > 0.5 and aspect_ratio < 2:  # фильтрация маленьких и неэллиптических фигур
+            (x, y), radius = cv2.minEnclosingCircle(contour)
+            centroids.append((int(x), int(y)))  # храним центр эллипса
+
+    # Обрезаем изображение так, чтобы центры эллипсов были в углах
+    if len(centroids) > 0:
+        min_x = min(centroid[0] for centroid in centroids) - radius
+        min_y = min(centroid[1] for centroid in centroids) - radius
+        max_x = max(centroid[0] for centroid in centroids) + radius
+        max_y = max(centroid[1] for centroid in centroids) + radius
+
+        # Проверяем, что координаты углов эллипсов не выходят за пределы изображения
+        if min_x < 0 or min_y < 0 or max_x > image.shape[1] or max_y > image.shape[0]:
+            print("Координаты углов эллипсов выходят за пределы изображения")
+            return None
+
+        # Вычисляем ширину и высоту обрезанного изображения
+        width = max_x - min_x
+        height = max_y - min_y
+
+        # Обрезаем изображение до желаемой прямоугольной формы
+        cropped_image = image[int(min_y):int(max_y), int(min_x):int(max_x)]
+
+        # Отображаем результат
+        cv2.namedWindow('Output', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Output', 360, 240)
+        cv2.imshow('Output', cropped_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    return centroids
